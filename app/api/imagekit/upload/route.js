@@ -1,12 +1,30 @@
+export const dynamic = "force-dynamic";
+
+
 import { NextResponse } from "next/server";
 import ImageKit from "imagekit";
 import { auth } from "@clerk/nextjs/server";
 
 // Initialize ImageKit
+// const imagekit = new ImageKit({
+//   publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY,
+//   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+//   urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT,
+// });
+
+
+
+console.log("PUBLIC KEY:", process.env.IMAGEKIT_PUBLIC_KEY);
+console.log("PRIVATE KEY:", process.env.IMAGEKIT_PRIVATE_KEY ? "SET" : "MISSING");
+console.log("URL ENDPOINT:", process.env.IMAGEKIT_URL_ENDPOINT);
+//delete upper part
+
+
+
 const imagekit = new ImageKit({
-  publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY,
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-  urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT,
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
 });
 
 export async function POST(request) {

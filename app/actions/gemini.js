@@ -4,15 +4,37 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Utility: retry with exponential backoff for 503/overload errors
+async function retryRequest(fn, retries = 3, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      // Retry only for transient errors (503 or overloaded)
+      if (
+        (error.message?.includes("503") ||
+          error.message?.includes("overloaded") ||
+          error.message?.includes("temporarily unavailable")) &&
+        i < retries - 1
+      ) {
+        const wait = delay * Math.pow(2, i);
+        console.warn(`Gemini overloaded — retrying in ${wait / 1000}s...`);
+        await new Promise((res) => setTimeout(res, wait));
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 export async function generateBlogContent(title, category = "", tags = []) {
   try {
     if (!title || title.trim().length === 0) {
       throw new Error("Title is required to generate content");
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-    // Create a detailed prompt for blog content generation
     const prompt = `
 Write a comprehensive blog post with the title: "${title}"
 
@@ -22,25 +44,24 @@ ${tags.length > 0 ? `Tags: ${tags.join(", ")}` : ""}
 Requirements:
 - Write engaging, informative content that matches the title
 - Use proper HTML formatting with headers (h2, h3), paragraphs, lists, and emphasis
-- Include 3-5 main sections with clear subheadings
+- Include 3–5 main sections with clear subheadings
 - Write in a conversational yet professional tone
-- Make it approximately 800-1200 words
+- Make it approximately 800–1200 words
 - Include practical insights, examples, or actionable advice where relevant
 - Use <h2> for main sections and <h3> for subsections
 - Use <p> tags for paragraphs
 - Use <ul> and <li> for bullet points when appropriate
 - Use <strong> and <em> for emphasis
 - Ensure the content is original and valuable to readers
-
-Do not include the title in the content as it will be added separately.
-Start directly with the introduction paragraph.
+- Do NOT include the title itself in the output
 `;
 
-    const result = await model.generateContent(prompt);
+    // Run the generation with retry handling
+    const result = await retryRequest(() => model.generateContent(prompt));
+
     const response = await result.response;
     const content = response.text();
 
-    // Basic validation
     if (!content || content.trim().length < 100) {
       throw new Error("Generated content is too short or empty");
     }
@@ -52,24 +73,35 @@ Start directly with the introduction paragraph.
   } catch (error) {
     console.error("Gemini AI Error:", error);
 
-    // Handle specific error types
+    // Friendly messages for known issues
     if (error.message?.includes("API key")) {
       return {
         success: false,
-        error: "AI service configuration error. Please try again later.",
+        error: "Gemini API configuration issue. Please check your API key.",
+      };
+    }
+
+    if (
+      error.message?.includes("503") ||
+      error.message?.includes("overloaded") ||
+      error.message?.includes("temporarily unavailable")
+    ) {
+      return {
+        success: false,
+        error: "Gemini service is overloaded. Please try again in a few minutes.",
       };
     }
 
     if (error.message?.includes("quota") || error.message?.includes("limit")) {
       return {
         success: false,
-        error: "AI service is temporarily unavailable. Please try again later.",
+        error: "Gemini quota limit reached. Please wait or upgrade your plan.",
       };
     }
 
     return {
       success: false,
-      error: error.message || "Failed to generate content. Please try again.",
+      error: error.message || "Failed to generate blog content.",
     };
   }
 }
