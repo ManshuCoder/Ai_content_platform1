@@ -5,6 +5,9 @@ import { ConvexReactClient } from "convex/react";
 import { useAuth } from "@clerk/nextjs";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 
+// Placeholder URL used only during build/SSR when env var is missing
+const BUILD_PLACEHOLDER_URL = "https://placeholder.convex.cloud";
+
 const normalizeConvexUrl = (rawUrl) => {
   if (!rawUrl) return null;
 
@@ -30,10 +33,18 @@ export function ConvexClientProvider({ children }) {
     );
 
     if (!normalizedUrl) {
+      // During build/SSR, use a placeholder URL to allow pre-rendering
+      // The actual URL will be used at runtime
+      if (typeof window === "undefined") {
+        return new ConvexReactClient(BUILD_PLACEHOLDER_URL);
+      }
+
       if (process.env.NODE_ENV === "production") {
-        throw new Error(
+        console.error(
           "NEXT_PUBLIC_CONVEX_URL is required in production. Set it to your Convex deployment URL."
         );
+        // Use placeholder to prevent crashes, but log error
+        return new ConvexReactClient(BUILD_PLACEHOLDER_URL);
       }
 
       console.warn(
