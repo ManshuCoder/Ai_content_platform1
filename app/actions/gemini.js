@@ -1,8 +1,27 @@
 "use server";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_MODEL = "gemini-2.5-flash";
+
+function getErrorMessage(error) {
+  return error?.message || "Unexpected error while contacting Gemini.";
+}
+
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error(
+      "Missing Gemini API key. Set GEMINI_API_KEY or GOOGLE_API_KEY in your .env.local file."
+    );
+  }
+
+  return new GoogleGenAI({
+    apiKey,
+    apiVersion: "v1",
+  });
+}
 
 // Utility: retry with exponential backoff for 503/overload errors
 async function retryRequest(fn, retries = 3, delay = 2000) {
@@ -10,11 +29,12 @@ async function retryRequest(fn, retries = 3, delay = 2000) {
     try {
       return await fn();
     } catch (error) {
-      // Retry only for transient errors (503 or overloaded)
+      const message = getErrorMessage(error);
+
       if (
-        (error.message?.includes("503") ||
-          error.message?.includes("overloaded") ||
-          error.message?.includes("temporarily unavailable")) &&
+        (message.includes("503") ||
+          message.includes("overloaded") ||
+          message.includes("temporarily unavailable")) &&
         i < retries - 1
       ) {
         const wait = delay * Math.pow(2, i);
@@ -33,7 +53,7 @@ export async function generateBlogContent(title, category = "", tags = []) {
       throw new Error("Title is required to generate content");
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+    const ai = getGeminiClient();
 
     const prompt = `
 Write a comprehensive blog post with the title: "${title}"
@@ -56,25 +76,29 @@ Requirements:
 - Do NOT include the title itself in the output
 `;
 
-    // Run the generation with retry handling
-    const result = await retryRequest(() => model.generateContent(prompt));
+    const result = await retryRequest(() =>
+      ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+      })
+    );
 
-    const response = await result.response;
-    const content = response.text();
+    const content = result?.text?.trim();
 
-    if (!content || content.trim().length < 100) {
+    if (!content || content.length < 100) {
       throw new Error("Generated content is too short or empty");
     }
 
     return {
       success: true,
-      content: content.trim(),
+      content,
     };
   } catch (error) {
     console.error("Gemini AI Error:", error);
 
-    // Friendly messages for known issues
-    if (error.message?.includes("API key")) {
+    const message = getErrorMessage(error);
+
+    if (message.includes("API key") || message.includes("authentication")) {
       return {
         success: false,
         error: "Gemini API configuration issue. Please check your API key.",
@@ -82,9 +106,9 @@ Requirements:
     }
 
     if (
-      error.message?.includes("503") ||
-      error.message?.includes("overloaded") ||
-      error.message?.includes("temporarily unavailable")
+      message.includes("503") ||
+      message.includes("overloaded") ||
+      message.includes("temporarily unavailable")
     ) {
       return {
         success: false,
@@ -92,7 +116,7 @@ Requirements:
       };
     }
 
-    if (error.message?.includes("quota") || error.message?.includes("limit")) {
+    if (message.includes("quota") || message.includes("limit")) {
       return {
         success: false,
         error: "Gemini quota limit reached. Please wait or upgrade your plan.",
@@ -101,21 +125,18 @@ Requirements:
 
     return {
       success: false,
-      error: error.message || "Failed to generate blog content.",
+      error: message || "Failed to generate blog content.",
     };
   }
 }
 
-export async function improveContent(
-  currentContent,
-  improvementType = "enhance"
-) {
+export async function improveContent(currentContent, improvementType = "enhance") {
   try {
     if (!currentContent || currentContent.trim().length === 0) {
       throw new Error("Content is required for improvement");
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const ai = getGeminiClient();
 
     let prompt = "";
 
@@ -166,19 +187,26 @@ Requirements:
 `;
     }
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const improvedContent = response.text();
+    const result = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+    });
+
+    const improvedContent = result?.text?.trim();
+
+    if (!improvedContent) {
+      throw new Error("Gemini returned an empty response.");
+    }
 
     return {
       success: true,
-      content: improvedContent.trim(),
+      content: improvedContent,
     };
   } catch (error) {
     console.error("Content improvement error:", error);
     return {
       success: false,
-      error: error.message || "Failed to improve content. Please try again.",
+      error: getErrorMessage(error) || "Failed to improve content. Please try again.",
     };
   }
 }

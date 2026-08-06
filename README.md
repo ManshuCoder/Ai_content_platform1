@@ -72,7 +72,7 @@ A full-stack AI-powered content creation and publishing platform where creators 
 
 | Service | Purpose | How It Works |
 |---------|---------|--------------|
-| **Google Gemini AI** | AI blog generation and content improvement | Server Actions call `gemini-2.5-flash-lite` (generate) and `gemini-1.5-flash` (enhance/expand/simplify) |
+| **Google Gemini AI** | AI blog generation and content improvement | Server Actions call `gemini-2.5-flash` for both generation and refinement using the current `@google/genai` SDK |
 | **ImageKit** | Image upload, CDN, transformations | Upload via `/api/imagekit/upload` → CDN URLs → transformations in `lib/imagekit.js` |
 | **Clerk** | Auth and session management | `@clerk/nextjs` provider + middleware |
 | **Convex** | Database + real-time API | Client hooks call `api.*` queries/mutations |
