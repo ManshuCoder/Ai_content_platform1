@@ -80,7 +80,7 @@ export default function PostEditorContent({
   });
 
   const handleAI = async (type, improvementType = null) => {
-    const { title, content, category, tags } = watchedValues;
+    const { title, content, category, tags } = form.getValues();
 
     if (type === "generate") {
       if (!title?.trim())
@@ -105,7 +105,11 @@ export default function PostEditorContent({
           : await improveContent(content, improvementType);
 
       if (result.success) {
-        setValue("content", result.content);
+        setValue("content", result.content, {
+          shouldValidate: true,
+          shouldDirty: true,
+          shouldTouch: true,
+        });
         toast.success(
           `Content ${type === "generate" ? "generated" : improvementType + "d"} successfully!`
         );

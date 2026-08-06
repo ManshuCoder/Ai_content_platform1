@@ -3,6 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
+import { unstable_noStore as noStore } from "next/cache";
 
 function getErrorMessage(error) {
   return error?.message || "Unexpected error while contacting Gemini.";
@@ -48,6 +49,7 @@ async function retryRequest(fn, retries = 3, delay = 2000) {
 }
 
 export async function generateBlogContent(title, category = "", tags = []) {
+  noStore();
   try {
     if (!title || title.trim().length === 0) {
       throw new Error("Title is required to generate content");
@@ -131,6 +133,7 @@ Requirements:
 }
 
 export async function improveContent(currentContent, improvementType = "enhance") {
+  noStore();
   try {
     if (!currentContent || currentContent.trim().length === 0) {
       throw new Error("Content is required for improvement");
