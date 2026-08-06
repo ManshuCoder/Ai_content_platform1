@@ -3,40 +3,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { unstable_noStore as noStore } from "next/cache";
 
-let cachedModel = null;
-
-async function getValidModel(ai) {
-  if (cachedModel) return cachedModel;
-  
-  try {
-    const response = await ai.models.list();
-    const models = response.models || response;
-    
-    let fallback = null;
-    let preferred = null;
-    
-    for await (const model of models) {
-      const name = model.name;
-      const methods = model.supportedGenerationMethods || [];
-      
-      if (methods.includes("generateContent")) {
-        if (!fallback) fallback = name;
-        if (name.includes("flash") && !name.includes("exp")) {
-          preferred = name;
-          break;
-        }
-      }
-    }
-    
-    cachedModel = preferred || fallback;
-    if (!cachedModel) throw new Error("No supported generateContent models found");
-    
-    return cachedModel;
-  } catch (error) {
-    console.error("Failed to list models:", error);
-    throw new Error("Could not determine a supported Gemini model dynamically.");
-  }
-}
+// Using explicit model instead of dynamic detection
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 function getErrorMessage(error) {
   return error?.message || "Unexpected error while contacting Gemini.";
@@ -111,7 +79,7 @@ Requirements:
 - Do NOT include the title itself in the output
 `;
 
-    const modelToUse = await getValidModel(ai);
+    const modelToUse = GEMINI_MODEL;
 
     const result = await retryRequest(() =>
       ai.models.generateContent({
@@ -225,7 +193,7 @@ Requirements:
 `;
     }
 
-    const modelToUse = await getValidModel(ai);
+    const modelToUse = GEMINI_MODEL;
 
     const result = await ai.models.generateContent({
       model: modelToUse,
