@@ -1,9 +1,42 @@
 "use server";
 
 import { GoogleGenAI } from "@google/genai";
-
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
 import { unstable_noStore as noStore } from "next/cache";
+
+let cachedModel = null;
+
+async function getValidModel(ai) {
+  if (cachedModel) return cachedModel;
+  
+  try {
+    const response = await ai.models.list();
+    const models = response.models || response;
+    
+    let fallback = null;
+    let preferred = null;
+    
+    for await (const model of models) {
+      const name = model.name;
+      const methods = model.supportedGenerationMethods || [];
+      
+      if (methods.includes("generateContent")) {
+        if (!fallback) fallback = name;
+        if (name.includes("flash") && !name.includes("exp")) {
+          preferred = name;
+          break;
+        }
+      }
+    }
+    
+    cachedModel = preferred || fallback;
+    if (!cachedModel) throw new Error("No supported generateContent models found");
+    
+    return cachedModel;
+  } catch (error) {
+    console.error("Failed to list models:", error);
+    throw new Error("Could not determine a supported Gemini model dynamically.");
+  }
+}
 
 function getErrorMessage(error) {
   return error?.message || "Unexpected error while contacting Gemini.";
@@ -78,9 +111,11 @@ Requirements:
 - Do NOT include the title itself in the output
 `;
 
+    const modelToUse = await getValidModel(ai);
+
     const result = await retryRequest(() =>
       ai.models.generateContent({
-        model: GEMINI_MODEL,
+        model: modelToUse,
         contents: prompt,
       })
     );
@@ -190,8 +225,10 @@ Requirements:
 `;
     }
 
+    const modelToUse = await getValidModel(ai);
+
     const result = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+      model: modelToUse,
       contents: prompt,
     });
 

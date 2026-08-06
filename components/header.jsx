@@ -2,8 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import { useStoreUser } from "@/hooks/use-store-user";
+import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
 import { BarLoader } from "react-spinners";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "./ui/button";
@@ -12,7 +11,9 @@ import { Authenticated, Unauthenticated } from "convex/react";
 import Image from "next/image";
 
 export default function Header() {
-  const { isLoading, isAuthenticated } = useStoreUser();
+  const { isLoaded, isSignedIn } = useAuth();
+  const isLoading = !isLoaded;
+  const isAuthenticated = isSignedIn;
   const path = usePathname();
   const router = useRouter();
 
