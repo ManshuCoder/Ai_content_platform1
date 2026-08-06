@@ -2,7 +2,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
 
 function getErrorMessage(error) {
   return error?.message || "Unexpected error while contacting Gemini.";

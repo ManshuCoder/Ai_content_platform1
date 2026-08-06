@@ -1,67 +1,57 @@
 export const dynamic = "force-dynamic";
 
-
 import { NextResponse } from "next/server";
 import ImageKit from "imagekit";
 import { auth } from "@clerk/nextjs/server";
 
-// Initialize ImageKit
-// const imagekit = new ImageKit({
-//   publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY,
-//   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-//   urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT,
-// });
+function createImageKitClient() {
+  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY?.trim();
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY?.trim();
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT?.trim();
 
+  if (!publicKey || !privateKey || !urlEndpoint) {
+    throw new Error(
+      "Missing ImageKit configuration. Set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT in your environment."
+    );
+  }
 
-
-console.log("PUBLIC KEY:", process.env.IMAGEKIT_PUBLIC_KEY);
-console.log("PRIVATE KEY:", process.env.IMAGEKIT_PRIVATE_KEY ? "SET" : "MISSING");
-console.log("URL ENDPOINT:", process.env.IMAGEKIT_URL_ENDPOINT);
-//delete upper part
-
-
-
-const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
-});
+  return new ImageKit({
+    publicKey,
+    privateKey,
+    urlEndpoint,
+  });
+}
 
 export async function POST(request) {
   try {
-    // Verify authentication
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get form data
+    const imagekit = createImageKitClient();
+
     const formData = await request.formData();
     const file = formData.get("file");
-    const fileName = formData.get("fileName");
+    const fileName = formData.get("fileName")?.toString() || "upload";
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Generate unique filename
     const timestamp = Date.now();
-    const sanitizedFileName =
-      fileName?.replace(/[^a-zA-Z0-9.-]/g, "_") || "upload";
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
     const uniqueFileName = `${userId}/${timestamp}_${sanitizedFileName}`;
 
-    // Upload to ImageKit - Simple server-side upload
     const uploadResponse = await imagekit.upload({
       file: buffer,
       fileName: uniqueFileName,
       folder: "/blog_images",
     });
 
-    // Return upload data
     return NextResponse.json({
       success: true,
       url: uploadResponse.url,
@@ -77,7 +67,7 @@ export async function POST(request) {
       {
         success: false,
         error: "Failed to upload image",
-        details: error.message,
+        details: error?.message || "Unknown error",
       },
       { status: 500 }
     );

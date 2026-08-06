@@ -26,7 +26,11 @@ export const metadata = {
   },
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }) {
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className}`}>
@@ -37,7 +41,7 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           <ClerkProvider
-            publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+            publishableKey={publishableKey}
             appearance={{
               baseTheme: shadesOfPurple,
             }}
@@ -46,7 +50,6 @@ export default function RootLayout({ children }) {
               <Header />
               <main className="bg-slate-900 min-h-screen text-white overflow-x-hidden">
                 <Toaster richColors />
-
                 {children}
               </main>
             </ConvexClientProvider>
