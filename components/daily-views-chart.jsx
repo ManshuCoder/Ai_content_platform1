@@ -9,6 +9,7 @@ import {
   PointElement,
   LineElement,
   Tooltip,
+  Filler,
 } from "chart.js";
 
 ChartJS.register(
@@ -16,7 +17,8 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
-  Tooltip
+  Tooltip,
+  Filler
 );
 
 const DailyViewsChart = ({ data, isLoading }) => {
